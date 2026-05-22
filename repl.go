@@ -7,27 +7,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/superz97/go-pokedex/internal/pokeapi"
 	"github.com/superz97/go-pokedex/internal/pokecache"
 )
 
 type config struct {
-	Next     *string
-	Previous *string
-	cache    *pokecache.Cache
+	Next          *string
+	Previous      *string
+	pokeapiClient pokeapi.Client
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*config) error
+	callback    func(*config, []string) error
 }
 
 func startRepl() {
 	reader := bufio.NewScanner(os.Stdin)
-	commands := getCommands()
+	cache := pokecache.NewCache(5 * time.Second)
 	cfg := &config{
-		cache: pokecache.NewCache(5 * time.Second),
+		pokeapiClient: pokeapi.NewClient(cache),
 	}
+	commands := getCommands()
 	for {
 		fmt.Print("Pokedex > ")
 		reader.Scan()
@@ -40,7 +42,7 @@ func startRepl() {
 		commandName := words[0]
 
 		if cmd, ok := commands[commandName]; ok {
-			if err := cmd.callback(cfg); err != nil {
+			if err := cmd.callback(cfg, words[1:]); err != nil {
 				fmt.Println(err)
 			}
 		} else {
@@ -71,63 +73,12 @@ func getCommands() map[string]cliCommand {
 			description: "Displays the previous 20 location areas",
 			callback:    commandMapb,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Explore a location area for Pokemon",
+			callback:    commandExplore,
+		},
 	}
-}
-
-func commandHelp(cfg *config) error {
-	fmt.Println("Welcome to the Pokedex!")
-	fmt.Println("Usage:")
-	fmt.Println()
-	for _, cmd := range getCommands() {
-		fmt.Printf("%s: %s\n", cmd.name, cmd.description)
-	}
-	return nil
-}
-
-func commandExit(cfg *config) error {
-	fmt.Println("Closing the Pokedex... Goodbye!")
-	os.Exit(0)
-	return nil
-}
-
-func commandMap(cfg *config) error {
-	url := "https://pokeapi.co/api/v2/location-area/?limit=20"
-	if cfg.Next != nil {
-		url = *cfg.Next
-	}
-
-	result, err := fetchLocationAreas(url, cfg.cache)
-	if err != nil {
-		return err
-	}
-
-	cfg.Next = result.Next
-	cfg.Previous = result.Previous
-
-	for _, area := range result.Results {
-		fmt.Println(area.Name)
-	}
-	return nil
-}
-
-func commandMapb(cfg *config) error {
-	if cfg.Previous == nil {
-		fmt.Println("you're on the first page")
-		return nil
-	}
-
-	result, err := fetchLocationAreas(*cfg.Previous, cfg.cache)
-	if err != nil {
-		return err
-	}
-
-	cfg.Next = result.Next
-	cfg.Previous = result.Previous
-
-	for _, area := range result.Results {
-		fmt.Println(area.Name)
-	}
-	return nil
 }
 
 func cleanInput(text string) []string {
