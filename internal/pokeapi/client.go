@@ -26,6 +26,10 @@ func (c *Client) get(url string, target interface{}) error {
 		return err
 	}
 
+	if resp.StatusCode > 200 {
+		return fmt.Errorf("request to %s failed with status %d", url, resp.StatusCode)
+	}
+
 	c.cache.Add(url, data)
 	fmt.Printf("[cache MISS] %s (took %v)\n", url, time.Since(start))
 
