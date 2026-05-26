@@ -15,6 +15,7 @@ type config struct {
 	Next          *string
 	Previous      *string
 	pokeapiClient pokeapi.Client
+	caughtPokemon map[string]pokeapi.Pokemon
 }
 
 type cliCommand struct {
@@ -28,6 +29,7 @@ func startRepl() {
 	cache := pokecache.NewCache(5 * time.Second)
 	cfg := &config{
 		pokeapiClient: pokeapi.NewClient(cache),
+		caughtPokemon: make(map[string]pokeapi.Pokemon),
 	}
 	commands := getCommands()
 	for {
@@ -77,6 +79,11 @@ func getCommands() map[string]cliCommand {
 			name:        "explore",
 			description: "Explore a location area for Pokemon",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Attempt to catch a Pokemon",
+			callback:    commandCatch,
 		},
 	}
 }
